@@ -1,21 +1,29 @@
 package com.smallworld;
 
-import com.smallworld.data.Transaction;
 import com.smallworld.data.TransactionDto;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.smallworld.data.Transaction.loadTransactionsFromJson;
-
 public class TransactionDataFetcher {
 
     public static void main(String[] args) {
-        List<TransactionDto> transactionDtoList = Transaction.loadTransactionsFromJson();
-        TransactionDataFetcher transactionDataFetcher = new TransactionDataFetcher();
+//        List<TransactionDto> transactionDtoList = TransactionService.loadTransactionsFromJson();
+//        TransactionDataFetcher transactionDataFetcher = new TransactionDataFetcher();
 
-        System.out.println(transactionDataFetcher.getTotalTransactionAmount(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getTotalTransactionAmount(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getTotalTransactionAmountSentBy(transactionDtoList,"Billy Kimber"));
+//        System.out.println(transactionDataFetcher.getMaxTransactionAmount(transactionDtoList));
+//        System.out.println(transactionDataFetcher.countUniqueClients(transactionDtoList));
+//        System.out.println(transactionDataFetcher.hasOpenComplianceIssues(transactionDtoList,"Winston Churchill"));
+//        System.out.println(transactionDataFetcher.getTransactionsByBeneficiaryName(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getUnsolvedIssueIds(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getAllSolvedIssueMessages(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getTop3TransactionsByAmount(transactionDtoList));
+//        System.out.println(transactionDataFetcher.getTopSender(transactionDtoList));
+
+
     }
     /**
      * Returns the sum of the amounts of all transactions
@@ -64,7 +72,7 @@ public class TransactionDataFetcher {
         return transactionDtoList.stream()
                 .anyMatch(transaction ->
                         (transaction.getSenderFullName().equals(clientFullName) || transaction.getBeneficiaryFullName().equals(clientFullName))
-                                && transaction.getIssueSolved() == false);
+                                && !transaction.getIssueSolved());
 
     }
 
@@ -72,47 +80,59 @@ public class TransactionDataFetcher {
      * Returns all transactions indexed by beneficiary name
      */
     public Map<String, List<TransactionDto>> getTransactionsByBeneficiaryName(List<TransactionDto> transactionDtoList) {
-        Map<String , List<TransactionDto>> transactionMap = new HashMap<>();
-        for (TransactionDto transction:transactionDtoList
-             ) {
 
-            if(transactionMap.containsKey(transction.getBeneficiaryFullName())){
-                transactionMap.get(transction.getBeneficiaryFullName()).add(transction);
-//                transactionMap.put(transction.getBeneficiaryFullName(),);
-            }else{
-                transactionMap.put(transction.getBeneficiaryFullName(),Arrays.asList(transction));
-            }
-
-        }
-        return transactionMap;
+        return transactionDtoList.stream()
+                .collect(Collectors.groupingBy(TransactionDto::getBeneficiaryFullName));
     }
 
     /**
      * Returns the identifiers of all open compliance issues
      */
-    public Set<Integer> getUnsolvedIssueIds(List<TransactionDto> transactionDtoList) {
-        throw new UnsupportedOperationException();
+    public Set<Long> getUnsolvedIssueIds(List<TransactionDto> transactionDtoList) {
+       return transactionDtoList.stream()
+               .filter(transactionDto -> !transactionDto.getIssueSolved())
+                .map(TransactionDto::getMtn)
+                .collect(Collectors.toSet());
     }
 
     /**
      * Returns a list of all solved issue messages
      */
     public List<String> getAllSolvedIssueMessages(List<TransactionDto> transactionDtoList) {
-        throw new UnsupportedOperationException();
+        return transactionDtoList.stream()
+                .filter(TransactionDto::getIssueSolved)
+                .map(TransactionDto::getIssueMessage)
+                .collect(Collectors.toList());
     }
 
     /**
      * Returns the 3 transactions with the highest amount sorted by amount descending
      */
-    public List<Transaction> getTop3TransactionsByAmount(List<TransactionDto> transactionDtoList) {
-        throw new UnsupportedOperationException();
+    public List<TransactionDto> getTop3TransactionsByAmount(List<TransactionDto> transactionDtoList) {
+        int limit = 3;
+        transactionDtoList.sort(Comparator.comparingDouble(TransactionDto::getAmount).reversed());
+        limit = Math.min(limit,transactionDtoList.size());
+        return transactionDtoList.subList(0, limit);
     }
 
     /**
      * Returns the senderFullName of the sender with the most total sent amount
      */
     public Optional<String> getTopSender(List<TransactionDto> transactionDtoList) {
-        throw new UnsupportedOperationException();
+
+        Map<String, Double> senderToTotalSentAmount = transactionDtoList.stream().collect(Collectors.groupingBy(TransactionDto::getSenderFullName,Collectors.summingDouble(TransactionDto::getAmount)));
+
+        String topSender = "";
+        double maxSentAmount = Integer.MIN_VALUE;
+
+        for (Map.Entry<String, Double> entry : senderToTotalSentAmount.entrySet()) {
+            if (entry.getValue() > maxSentAmount) {
+                topSender = entry.getKey();
+                maxSentAmount = entry.getValue();
+            }
+        }
+
+        return Optional.ofNullable(topSender);
     }
 
 }
